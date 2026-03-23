@@ -1,6 +1,7 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
 import { PetDefs } from "./pet-defs";
 import { SpriteDefinition, SpriteEngine } from "./sprite-engine";
+import { PLUGIN_ID } from "./constants";
 
 export const VIEW_TYPE_STARDEW = "stardew-view";
 
@@ -33,15 +34,13 @@ export class StardewView extends ItemView {
         const farm = container.createDiv({ cls: "stardew-farm" });
 
         // Set background image from vault sprites folder
-        const bgUrl = this.app.vault.adapter.getResourcePath('sprites/backgrounds/grass.png');
+        const bgUrl = this.getPluginResourcePath('sprites/backgrounds/grass.png');
         farm.style.backgroundImage = `url('${bgUrl}')`;
 
-        // Add some animals
-        this.addAnimal(farm, "chicken", "chicken");
-        this.addAnimal(farm, "cow", "cow");
-        this.addAnimal(farm, "sheep", "sheep");
-        this.addAnimal(farm, "pig", "pig");
-        this.addAnimal(farm, "dog", "dog");
+        // Add one of each animal
+        for (const specie of Object.keys(this.ANIMAL_CONFIG)) {
+            this.spawnPet(specie, specie);
+        }
 
         // Start animations
         this.startAnimations();
@@ -60,6 +59,13 @@ export class StardewView extends ItemView {
     private readonly ANIMAL_CONFIG: Record<string, SpriteDefinition> = {
         chicken: PetDefs.CHICKEN,
         cow: PetDefs.COW,
+        turtle: PetDefs.TURTLE,
+        dino: PetDefs.DINO,
+        duck: PetDefs.DUCK,
+        raccoon: PetDefs.RACCOON,
+        rabbit: PetDefs.RABBIT,
+        parrot: PetDefs.PARROT,
+        junimo: PetDefs.JUNIMO,
         dog: PetDefs.DOG,
         cat: PetDefs.CAT,
     };
@@ -84,23 +90,18 @@ export class StardewView extends ItemView {
         }
 
         const animal = container.createDiv({ cls: "stardew-animal", attr: { id } });
-        const engine = new SpriteEngine(
-            animal,
-            config,
-            (file) => this.app.vault.adapter.getResourcePath(file)
-        );
-        engine.load().catch((err) => console.error(err));
+        const engine = new SpriteEngine(animal, config, (file) => this.getPluginResourcePath(file));
 
         const farmEl = container as HTMLElement;
-        const maxX = Math.max(0, farmEl.clientWidth - config.frameSize * config.scale);
-        const maxY = Math.max(0, farmEl.clientHeight - config.frameSize * config.scale);
+        const fallbackSize = (config.frameSize && config.frameSize > 0) ? config.frameSize : 16;
+        const maxX = Math.max(0, farmEl.clientWidth - fallbackSize * config.scale);
+        const maxY = Math.max(0, farmEl.clientHeight - fallbackSize * config.scale);
         const startX = Math.random() * maxX;
         const startY = Math.random() * maxY;
 
         animal.style.left = `${startX}px`;
         animal.style.top = `${startY}px`;
-        animal.style.width = `${config.frameSize * config.scale}px`;
-        animal.style.height = `${config.frameSize * config.scale}px`;
+        animal.style.setProperty("--sprite-size", `${fallbackSize * config.scale}px`);
 
         const animalState = {
             el: animal,
@@ -113,6 +114,29 @@ export class StardewView extends ItemView {
         };
 
         this.animals.push(animalState);
+
+        engine.load().then(() => {
+            const size = engine.getFrameSize() * config.scale;
+            animal.style.setProperty("--sprite-size", `${size}px`);
+            const maxLoadedX = Math.max(0, farmEl.clientWidth - size);
+            const maxLoadedY = Math.max(0, farmEl.clientHeight - size);
+            animalState.x = Math.max(0, Math.min(maxLoadedX, animalState.x));
+            animalState.y = Math.max(0, Math.min(maxLoadedY, animalState.y));
+            animal.style.left = `${animalState.x}px`;
+            animal.style.top = `${animalState.y}px`;
+        }).catch((err) => console.error(err));
+    }
+
+    spawnPet(name: string, specie: string, _color?: string) {
+        const farm = this.contentEl.querySelector(".stardew-farm");
+        if (!farm) return;
+        const key = this.normalizeSpecieKey(specie);
+        if (!key) {
+            console.warn(`Unknown pet specie: ${specie}`);
+            return;
+        }
+        const id = `${key}-${name}-${Date.now()}`;
+        this.addAnimal(farm, key, id);
     }
 
     startAnimations() {
@@ -132,7 +156,7 @@ export class StardewView extends ItemView {
         animalState.state = 'walking';
         const farm = this.contentEl.querySelector('.stardew-farm') as HTMLElement;
         if (!farm) return;
-        const padding = animalState.config.frameSize * animalState.config.scale;
+        const padding = animalState.engine.getFrameSize() * animalState.config.scale;
         const maxX = Math.max(0, farm.clientWidth - padding);
         const maxY = Math.max(0, farm.clientHeight - padding);
 
@@ -245,6 +269,19 @@ export class StardewView extends ItemView {
                 return "moveRight";
             case "up":
                 return "moveUp";
+            default:
+                return "moveDown";
         }
+    }
+
+    private normalizeSpecieKey(specie: string): string | null {
+        const key = specie.trim().toLowerCase();
+        if (key in this.ANIMAL_CONFIG) return key;
+        return null;
+    }
+
+    private getPluginResourcePath(file: string) {
+        const pluginFile = `${this.app.vault.configDir}/plugins/${PLUGIN_ID}/${file}`;
+        return this.app.vault.adapter.getResourcePath(pluginFile);
     }
 }

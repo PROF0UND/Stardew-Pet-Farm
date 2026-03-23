@@ -1,4 +1,4 @@
-import { Plugin, TFile, Notice } from 'obsidian';
+import { Plugin, Notice } from 'obsidian';
 import { StardewView, VIEW_TYPE_STARDEW } from './stardew-view';
 
 //Save
@@ -10,19 +10,6 @@ type Pet = {
 
 class Save {
     public pets: Array<Pet> = new Array<Pet>();
-}
-
-//Pets
-class PetItem {
-    public index: number;
-    public label: string;
-    public description: string;
-
-    constructor(index: number, name: string, description: string) {
-        this.index = index;
-        this.label = name;
-        this.description = description;
-    }
 }
 
 const PetSpecies: { [key: string]: string[] } = {

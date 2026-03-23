@@ -19,7 +19,7 @@ export class Animation {
 
 export type SpriteDefinition = {
     file: string;
-    frameSize: number;
+    frameSize?: number;
     scale: number;
     animations: Record<string, Animation | Animation[]>;
 };
@@ -32,6 +32,7 @@ export class SpriteEngine {
     private timer?: number;
     private spriteUrl: string;
     private flipped = false;
+    private frameSize = 16;
 
     constructor(el: HTMLElement, def: SpriteDefinition, resourcePath: (file: string) => string) {
         this.el = el;
@@ -47,6 +48,9 @@ export class SpriteEngine {
             img.onerror = () => reject(new Error(`Failed to load sprite ${this.def.file}`));
             img.src = this.spriteUrl;
         });
+        const rows = this.getMaxRow() + 1;
+        const inferred = rows > 0 ? Math.floor(img.naturalHeight / rows) : 16;
+        this.frameSize = (this.def.frameSize && this.def.frameSize > 0) ? this.def.frameSize : inferred;
         this.el.style.backgroundSize = `${img.naturalWidth * this.def.scale}px ${img.naturalHeight * this.def.scale}px`;
         this.setFrame([0, 0]);
     }
@@ -60,7 +64,8 @@ export class SpriteEngine {
         this.current = anim;
         this.frameIndex = 0;
         this.setFlip(Boolean(anim.options.flip));
-        this.setFrame(anim.frames[this.frameIndex]);
+        const firstFrame = anim.frames[this.frameIndex];
+        if (firstFrame) this.setFrame(firstFrame);
         const interval = Math.max(16, Math.floor(1000 / anim.fps));
         this.timer = window.setInterval(() => {
             if (!this.current) return;
@@ -72,7 +77,8 @@ export class SpriteEngine {
                 }
                 this.frameIndex = 0;
             }
-            this.setFrame(this.current.frames[this.frameIndex]);
+            const frame = this.current.frames[this.frameIndex];
+            if (frame) this.setFrame(frame);
         }, interval);
     }
 
@@ -89,8 +95,25 @@ export class SpriteEngine {
     }
 
     setFrame(frame: Frame) {
-        const x = -(frame[0] * this.def.frameSize) * this.def.scale;
-        const y = -(frame[1] * this.def.frameSize) * this.def.scale;
+        const x = -(frame[0] * this.frameSize) * this.def.scale;
+        const y = -(frame[1] * this.frameSize) * this.def.scale;
         this.el.style.backgroundPosition = `${x}px ${y}px`;
+    }
+
+    getFrameSize() {
+        return this.frameSize;
+    }
+
+    private getMaxRow() {
+        let maxY = 0;
+        for (const anim of Object.values(this.def.animations)) {
+            const list = Array.isArray(anim) ? anim : [anim];
+            for (const a of list) {
+                for (const frame of a.frames) {
+                    if (frame[1] > maxY) maxY = frame[1];
+                }
+            }
+        }
+        return maxY;
     }
 }

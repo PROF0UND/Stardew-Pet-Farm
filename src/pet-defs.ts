@@ -172,19 +172,19 @@ export class PetAnimations {
 
 export class PetDefs {
     static get CAT(): SpriteDefinition {
-        return { file: "sprites/pets/cat.png", frameSize: 16, scale: 1, animations: PetAnimations.CAT };
+        return { file: "sprites/pets/cat.png", scale: 1, animations: PetAnimations.CAT };
     }
 
     static get DOG(): SpriteDefinition {
-        return { file: "sprites/pets/dog.png", frameSize: 16, scale: 1, animations: PetAnimations.DOG };
+        return { file: "sprites/pets/dog.png", frameSize: 32, scale: 1, animations: PetAnimations.DOG };
     }
 
     static get TURTLE(): SpriteDefinition {
-        return { file: "sprites/pets/turtle.png", frameSize: 16, scale: 1, animations: PetAnimations.TURTLE };
+        return { file: "sprites/pets/turtle.png", frameSize: 32, scale: 1, animations: PetAnimations.TURTLE };
     }
 
     static get DINO(): SpriteDefinition {
-        return { file: "sprites/pets/dino.png", frameSize: 16, scale: 1, animations: PetAnimations.DINO };
+        return { file: "sprites/pets/dino.png", scale: 1, animations: PetAnimations.DINO };
     }
 
     static get DUCK(): SpriteDefinition {
@@ -192,23 +192,23 @@ export class PetDefs {
     }
 
     static get RACCOON(): SpriteDefinition {
-        return { file: "sprites/pets/raccoon.png", frameSize: 16, scale: 1, animations: PetAnimations.RACCOON };
+        return { file: "sprites/pets/raccoon.png", frameSize: 32, scale: 1, animations: PetAnimations.RACCOON };
     }
 
     static get RABBIT(): SpriteDefinition {
-        return { file: "sprites/pets/rabbit.png", frameSize: 16, scale: 1, animations: PetAnimations.RABBIT };
+        return { file: "sprites/pets/rabbit.png", scale: 1, animations: PetAnimations.RABBIT };
     }
 
     static get CHICKEN(): SpriteDefinition {
-        return { file: "sprites/pets/chicken.png", frameSize: 16, scale: 1, animations: PetAnimations.CHICKEN };
+        return { file: "sprites/pets/chicken.png", scale: 1, animations: PetAnimations.CHICKEN };
     }
 
     static get COW(): SpriteDefinition {
-        return { file: "sprites/pets/cow.png", frameSize: 16, scale: 1, animations: PetAnimations.COW };
+        return { file: "sprites/pets/cow.png", scale: 1, animations: PetAnimations.COW };
     }
 
     static get PARROT(): SpriteDefinition {
-        return { file: "sprites/pets/parrot.png", frameSize: 16, scale: 1, animations: PetAnimations.PARROT };
+        return { file: "sprites/pets/parrot.png", frameSize: 24, scale: 1, animations: PetAnimations.PARROT };
     }
 
     static get JUNIMO(): SpriteDefinition {

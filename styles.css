@@ -35,12 +35,11 @@ If your plugin does not need CSS, delete this file.
 
 .stardew-animal {
     position: absolute;
-    width: 16px;
-    height: 16px;
+    width: var(--sprite-size, 32px);
+    height: var(--sprite-size, 32px);
     background-size: contain;
     background-repeat: no-repeat;
     transition: left 0.5s linear, top 0.5s linear;
-    border: 1px solid red; /* Debug border */
     z-index: 1;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
