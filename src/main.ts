@@ -1,99 +1,176 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+import { Plugin, TFile, Notice } from 'obsidian';
+import { StardewView, VIEW_TYPE_STARDEW } from './stardew-view';
 
-// Remember to rename these classes and interfaces!
-
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
-
-	async onload() {
-		await this.loadSettings();
-
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection('Sample editor command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
-	}
-
-	onunload() {
-	}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
+//Save
+type Pet = {
+    name: string;
+    specie: string;
+    color: string;
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
+class Save {
+    public pets: Array<Pet> = new Array<Pet>();
+}
 
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
+//Pets
+class PetItem {
+    public index: number;
+    public label: string;
+    public description: string;
 
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
+    constructor(index: number, name: string, description: string) {
+        this.index = index;
+        this.label = name;
+        this.description = description;
+    }
+}
+
+const PetSpecies: { [key: string]: string[] } = {
+    Cat:        ['Black', 'Gray', 'Orange', 'White', 'Yellow', 'Purple'],
+    Dog:        ['Blonde', 'Gray', 'Brown', 'Dark Brown', 'Light Brown', 'Purple'],
+    Turtle:     ['Green', 'Purple'],
+    Dino:       [],
+    Duck:       [],
+    Raccoon:    [],
+    Goat:       ['Adult', 'Baby'],
+    Sheep:      ['Adult', 'Baby'],
+    Ostrich:    ['Adult', 'Baby'],
+    Pig:        ['Adult', 'Baby'],
+    Rabbit:     ['Adult', 'Baby'],
+    Chicken:    ['White Adult', 'White Baby', 'Blue Adult', 'Blue Baby', 'Brown Adult', 'Brown Baby', 'Black Adult', 'Black Baby'],
+    Cow:        ['White Adult', 'White Baby', 'Brown Adult', 'Brown Baby'],
+    Parrot:     ['Green Adult', 'Green Baby', 'Blue Adult', 'Blue Baby', 'Golden Joja'],
+    Junimo:     ['White', 'Black', 'Gray', 'Pink', 'Red', 'Orange', 'Yellow', 'Green', 'Cyan', 'Purple', 'Brown'],
+}
+
+const Names: string[] = [
+    'Alex',     'Laura',
+    'Raúl',     'Ángela',
+    'Aitor',    'Chao',
+    'Álvaro',   'Victor',
+    'Rodri',    'Adri',
+    'Oliva',    'Pablo',
+    'Sara',     'Mar',
+    'David',    'Unai',
+    'Nadia',    'Miriam',
+    'Irene',    'Diana',
+    'Aitana',   'Lucia',
+]
+
+let save = new Save();
+
+export default class StardewPetsPlugin extends Plugin {
+    private view: StardewView | null = null;
+
+    async onload() {
+        // Load save data
+        await this.loadGame();
+
+        // Register the Stardew view
+        this.registerView(VIEW_TYPE_STARDEW, (leaf) => {
+            this.view = new StardewView(leaf);
+            return this.view;
+        });
+
+        // Command to open Stardew view
+        this.addCommand({
+            id: 'open-stardew-view',
+            name: 'Open Stardew Animals',
+            callback: () => {
+                this.app.workspace.getLeaf(true).setViewState({ type: VIEW_TYPE_STARDEW });
+            }
+        });
+
+        // Command to add pet
+        this.addCommand({
+            id: 'add-pet',
+            name: 'Add Pet',
+            callback: () => {
+                this.addPetCommand();
+            }
+        });
+
+        // Load existing pets when view is ready
+        this.app.workspace.onLayoutReady(() => {
+            this.loadPets();
+        });
+    }
+
+    onunload() {
+        // Save game
+        this.saveGame();
+    }
+
+    async loadGame() {
+        const data = await this.loadData();
+        if (data && data.pets) {
+            save.pets = data.pets;
+        }
+    }
+
+    async saveGame() {
+        await this.saveData(save);
+    }
+
+    loadPets() {
+        if (this.view) {
+            for (const pet of save.pets) {
+                this.view.spawnPet(pet.name, pet.specie, pet.color);
+            }
+        }
+    }
+
+    loadPet(pet: Pet) {
+        if (this.view) {
+            this.view.spawnPet(pet.name, pet.specie, pet.color);
+        }
+    }
+
+    addPet(pet: Pet) {
+        // Add to list & save
+        save.pets.push(pet);
+        this.saveGame();
+
+        // Load pet in view
+        this.loadPet(pet);
+    }
+
+    async addPetCommand() {
+        // For simplicity, add a random chicken for now
+        const specie = 'Chicken';
+        const variants = PetSpecies[specie];
+        if (!variants || variants.length === 0) {
+            new Notice('No variants available for Chicken');
+            return;
+        }
+
+        const randomVariant = variants[Math.floor(Math.random() * variants.length)];
+        if (!randomVariant) {
+            new Notice('Invalid variant selected');
+            return;
+        }
+
+        const name = Names[Math.floor(Math.random() * Names.length)];
+        if (!name) {
+            new Notice('No names available');
+            return;
+        }
+
+        // Parse variant
+        const parts = randomVariant.split(' ');
+        if (parts.length < 2) {
+            new Notice('Invalid variant format');
+            return;
+        }
+
+        const color = parts.slice(0, -1).join(' ').toLowerCase();
+        const age = parts[parts.length - 1]?.toLowerCase();
+        if (!age) {
+            new Notice('Invalid age in variant');
+            return;
+        }
+
+        this.addPet({ name, specie, color: `${color} ${age}` });
+        new Notice(`Added ${name} the ${color} ${age} ${specie}`);
+    }
 }
