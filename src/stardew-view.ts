@@ -173,15 +173,65 @@ export class StardewView extends ItemView {
             distance: number;
         }> = [];
 
-        if (Math.abs(dx) > 1) {
+        const canX = Math.abs(dx) > 1;
+        const canY = Math.abs(dy) > 1;
+        if (canX && canY) {
+            const useTwoSegments = Math.random() < 0.5;
+            const firstHorizontal = Math.random() < 0.5;
+            if (useTwoSegments) {
+                if (firstHorizontal) {
+                    segments.push({
+                        dx,
+                        dy: 0,
+                        direction: dx > 0 ? 'right' : 'left',
+                        distance: Math.abs(dx),
+                    });
+                    segments.push({
+                        dx: 0,
+                        dy,
+                        direction: dy > 0 ? 'down' : 'up',
+                        distance: Math.abs(dy),
+                    });
+                } else {
+                    segments.push({
+                        dx: 0,
+                        dy,
+                        direction: dy > 0 ? 'down' : 'up',
+                        distance: Math.abs(dy),
+                    });
+                    segments.push({
+                        dx,
+                        dy: 0,
+                        direction: dx > 0 ? 'right' : 'left',
+                        distance: Math.abs(dx),
+                    });
+                }
+            } else {
+                const goHorizontal = Math.random() < 0.5;
+                if (goHorizontal) {
+                    segments.push({
+                        dx,
+                        dy: 0,
+                        direction: dx > 0 ? 'right' : 'left',
+                        distance: Math.abs(dx),
+                    });
+                } else {
+                    segments.push({
+                        dx: 0,
+                        dy,
+                        direction: dy > 0 ? 'down' : 'up',
+                        distance: Math.abs(dy),
+                    });
+                }
+            }
+        } else if (canX) {
             segments.push({
                 dx,
                 dy: 0,
                 direction: dx > 0 ? 'right' : 'left',
                 distance: Math.abs(dx),
             });
-        }
-        if (Math.abs(dy) > 1) {
+        } else if (canY) {
             segments.push({
                 dx: 0,
                 dy,
