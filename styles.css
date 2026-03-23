@@ -11,11 +11,14 @@ If your plugin does not need CSS, delete this file.
     position: relative;
     width: 100%;
     height: 100%;
-    background-size: auto;
+    background-size: 'cover';
+    zoom: 200%;
     background-repeat: repeat;
     background-color: #8FBC8F; /* Dark sea green as fallback */
     border: 1px solid #ccc;
     overflow: hidden;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
 }
 
 .stardew-container {
@@ -32,11 +35,13 @@ If your plugin does not need CSS, delete this file.
 
 .stardew-animal {
     position: absolute;
-    width: 32px;
-    height: 32px;
+    width: 16px;
+    height: 16px;
     background-size: contain;
     background-repeat: no-repeat;
     transition: left 0.5s linear, top 0.5s linear;
     border: 1px solid red; /* Debug border */
     z-index: 1;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
 }

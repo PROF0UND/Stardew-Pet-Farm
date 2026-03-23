@@ -1,8 +1,11 @@
 import { ItemView, WorkspaceLeaf } from "obsidian";
+import { PetDefs } from "./pet-defs";
+import { SpriteDefinition, SpriteEngine } from "./sprite-engine";
 
 export const VIEW_TYPE_STARDEW = "stardew-view";
 
 export class StardewView extends ItemView {
+    private animationsPaused = false;
     constructor(leaf: WorkspaceLeaf) {
         super(leaf);
     }
@@ -42,81 +45,35 @@ export class StardewView extends ItemView {
 
         // Start animations
         this.startAnimations();
+
+        this.registerDomEvent(window, 'blur', () => this.pauseAnimations());
+        this.registerDomEvent(window, 'focus', () => this.resumeAnimations());
+        this.registerDomEvent(document, 'visibilitychange', () => {
+            if (document.hidden) {
+                this.pauseAnimations();
+            } else {
+                this.resumeAnimations();
+            }
+        });
     }
 
-    private readonly ANIMAL_CONFIG: Record<
-        string,
-        {
-            file: string;
-            frameSize: number;
-            framesPerDir: number;
-            dirs: Array<'down' | 'left' | 'right' | 'up'>;
-            originX: number;
-            originY: number;
-        }
-    > = {
-        // Chicken sprite contains multiple chicken types; keep the adult chicken at the top-left.
-        chicken: {
-            file: 'sprites/pets/chicken.png',
-            frameSize: 16,
-            framesPerDir: 3,
-            dirs: ['down', 'left', 'right', 'up'],
-            originX: 0,
-            originY: 0,
-        },
-        cow: {
-            file: 'sprites/pets/cow.png',
-            frameSize: 16,
-            framesPerDir: 3,
-            dirs: ['down', 'left', 'right', 'up'],
-            originX: 0,
-            originY: 0,
-        },
-        sheep: {
-            file: 'sprites/pets/sheep.png',
-            frameSize: 16,
-            framesPerDir: 3,
-            dirs: ['down', 'left', 'right', 'up'],
-            originX: 0,
-            originY: 0,
-        },
-        pig: {
-            file: 'sprites/pets/pig.png',
-            frameSize: 16,
-            framesPerDir: 3,
-            dirs: ['down', 'left', 'right', 'up'],
-            originX: 0,
-            originY: 0,
-        },
-        dog: {
-            file: 'sprites/pets/dog.png',
-            frameSize: 16,
-            framesPerDir: 3,
-            dirs: ['down', 'left', 'right', 'up'],
-            originX: 0,
-            originY: 0,
-        },
+    private readonly ANIMAL_CONFIG: Record<string, SpriteDefinition> = {
+        chicken: PetDefs.CHICKEN,
+        cow: PetDefs.COW,
+        dog: PetDefs.DOG,
+        cat: PetDefs.CAT,
     };
 
     private animals: Array<{
         el: HTMLElement;
-        config: {
-            file: string;
-            frameSize: number;
-            framesPerDir: number;
-            dirs: Array<'down' | 'left' | 'right' | 'up'>;
-            originX: number;
-            originY: number;
-        };
+        config: SpriteDefinition;
+        engine: SpriteEngine;
         x: number;
         y: number;
         state: 'idle' | 'walking';
         direction: 'down' | 'left' | 'right' | 'up';
-        frameIndex: number;
-        scale: number;
         idleTimer?: number;
         walkRaf?: number;
-        frameTimer?: number;
     }> = [];
 
     addAnimal(container: Element, sprite: string, id: string) {
@@ -127,37 +84,33 @@ export class StardewView extends ItemView {
         }
 
         const animal = container.createDiv({ cls: "stardew-animal", attr: { id } });
-        const spriteUrl = this.app.vault.adapter.getResourcePath(config.file);
-        animal.style.backgroundImage = `url('${spriteUrl}')`;
-        const scale = 2;
-        animal.style.width = `${config.frameSize * scale}px`;
-        animal.style.height = `${config.frameSize * scale}px`;
+        const engine = new SpriteEngine(
+            animal,
+            config,
+            (file) => this.app.vault.adapter.getResourcePath(file)
+        );
+        engine.load().catch((err) => console.error(err));
 
-        const farmRect = (container as HTMLElement).getBoundingClientRect();
-        const startX = Math.random() * (farmRect.width - config.frameSize * scale);
-        const startY = Math.random() * (farmRect.height - config.frameSize * scale);
+        const farmEl = container as HTMLElement;
+        const maxX = Math.max(0, farmEl.clientWidth - config.frameSize * config.scale);
+        const maxY = Math.max(0, farmEl.clientHeight - config.frameSize * config.scale);
+        const startX = Math.random() * maxX;
+        const startY = Math.random() * maxY;
 
         animal.style.left = `${startX}px`;
         animal.style.top = `${startY}px`;
+        animal.style.width = `${config.frameSize * config.scale}px`;
+        animal.style.height = `${config.frameSize * config.scale}px`;
 
         const animalState = {
             el: animal,
             config,
+            engine,
             x: startX,
             y: startY,
             state: 'idle' as const,
             direction: 'down' as const,
-            frameIndex: 0,
-            scale,
         };
-
-        // Use the natural image size to properly scale the sprite sheet.
-        const img = new Image();
-        img.onload = () => {
-            animal.style.backgroundSize = `${img.naturalWidth * scale}px ${img.naturalHeight * scale}px`;
-            this.setSpriteFrame(animalState);
-        };
-        img.src = spriteUrl;
 
         this.animals.push(animalState);
     }
@@ -167,22 +120,24 @@ export class StardewView extends ItemView {
     }
 
     private startIdle(animalState: typeof this.animals[number]) {
+        if (this.animationsPaused) return;
         animalState.state = 'idle';
-        animalState.frameIndex = 0;
-        this.setSpriteFrame(animalState);
+        animalState.engine.play("idle");
         const idleTime = 5000 + Math.random() * 5000; // 5-10s
         animalState.idleTimer = window.setTimeout(() => this.startWalk(animalState), idleTime);
     }
 
     private startWalk(animalState: typeof this.animals[number]) {
+        if (this.animationsPaused) return;
         animalState.state = 'walking';
         const farm = this.contentEl.querySelector('.stardew-farm') as HTMLElement;
         if (!farm) return;
-        const rect = farm.getBoundingClientRect();
-        const padding = animalState.config.frameSize * animalState.scale;
+        const padding = animalState.config.frameSize * animalState.config.scale;
+        const maxX = Math.max(0, farm.clientWidth - padding);
+        const maxY = Math.max(0, farm.clientHeight - padding);
 
-        const targetX = Math.random() * (rect.width - padding);
-        const targetY = Math.random() * (rect.height - padding);
+        const targetX = Math.random() * maxX;
+        const targetY = Math.random() * maxY;
 
         const dx = targetX - animalState.x;
         const dy = targetY - animalState.y;
@@ -226,33 +181,27 @@ export class StardewView extends ItemView {
 
             const segment = segments[index]!;
             animalState.direction = segment.direction;
-            animalState.frameIndex = 1;
-            this.setSpriteFrame(animalState);
+            animalState.engine.play(this.getMoveAnimName(animalState.direction));
 
             const duration = Math.max(200, (segment.distance / speed) * 1000);
             const startX = animalState.x;
             const startY = animalState.y;
             const startTime = performance.now();
 
-            if (animalState.frameTimer) window.clearInterval(animalState.frameTimer);
-            animalState.frameTimer = window.setInterval(() => {
-                animalState.frameIndex = (animalState.frameIndex + 1) % animalState.config.framesPerDir;
-                if (animalState.frameIndex === 0) animalState.frameIndex = 1;
-                this.setSpriteFrame(animalState);
-            }, 200);
-
             const step = (timestamp: number) => {
+                if (this.animationsPaused) return;
                 const elapsed = timestamp - startTime;
                 const progress = Math.min(1, elapsed / duration);
-                animalState.x = startX + segment.dx * progress;
-                animalState.y = startY + segment.dy * progress;
+                const nextX = startX + segment.dx * progress;
+                const nextY = startY + segment.dy * progress;
+                animalState.x = Math.max(0, Math.min(maxX, nextX));
+                animalState.y = Math.max(0, Math.min(maxY, nextY));
                 animalState.el.style.left = `${animalState.x}px`;
                 animalState.el.style.top = `${animalState.y}px`;
 
                 if (progress < 1) {
                     animalState.walkRaf = requestAnimationFrame(step);
                 } else {
-                    if (animalState.frameTimer) window.clearInterval(animalState.frameTimer);
                     walkSegment(index + 1);
                 }
             };
@@ -263,20 +212,39 @@ export class StardewView extends ItemView {
         walkSegment(0);
     }
 
-    private setSpriteFrame(animalState: typeof this.animals[number]) {
-        const { config, direction, frameIndex, scale } = animalState;
-        const dirIndex = config.dirs.indexOf(direction);
-        const x = -(config.originX + frameIndex * config.frameSize) * scale;
-        const y = -(config.originY + dirIndex * config.frameSize) * scale;
-        animalState.el.style.backgroundPosition = `${x}px ${y}px`;
+    async onClose() {
+        this.pauseAnimations();
+        this.animals = [];
     }
 
-    async onClose() {
+    private pauseAnimations() {
+        if (this.animationsPaused) return;
+        this.animationsPaused = true;
         this.animals.forEach(animal => {
             if (animal.idleTimer) window.clearTimeout(animal.idleTimer);
-            if (animal.frameTimer) window.clearInterval(animal.frameTimer);
             if (animal.walkRaf) cancelAnimationFrame(animal.walkRaf);
+            animal.engine.stop();
+            animal.idleTimer = undefined;
+            animal.walkRaf = undefined;
         });
-        this.animals = [];
+    }
+
+    private resumeAnimations() {
+        if (!this.animationsPaused) return;
+        this.animationsPaused = false;
+        this.animals.forEach(animal => this.startIdle(animal));
+    }
+
+    private getMoveAnimName(direction: 'down' | 'left' | 'right' | 'up') {
+        switch (direction) {
+            case "down":
+                return "moveDown";
+            case "left":
+                return "moveLeft";
+            case "right":
+                return "moveRight";
+            case "up":
+                return "moveUp";
+        }
     }
 }
