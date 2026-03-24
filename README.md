@@ -4,6 +4,8 @@
 
 Bring a tiny animated farm to your vault. Stardew Pets adds a playful view where pixel pets wander around, idle, and take naps while you work.
 
+Inspired by [BOTPanzer](https://github.com/BOTPanzer/Stardew-Pets). Thank you so much!!!
+
 ## Open The View
 
 1. Open the Command Palette (CRTL + P).
