@@ -1,1 +1,1 @@
-export const PLUGIN_ID = "skybirdyys";
+export const PLUGIN_ID = "Stardew-Pets-for-Obsidian";
